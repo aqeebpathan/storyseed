@@ -22,7 +22,7 @@ const StoryPage = async ({ params }: PageProps) => {
   const { slug } = await params
 
   const res = await fetch(`${process.env.BASE_URL}/api/stories/${slug}`, {
-    next: { revalidate: 20 },
+    cache: "no-store",
   })
 
   if (!res.ok) {
