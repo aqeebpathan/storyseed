@@ -1,17 +1,18 @@
 import { connectDB } from "@/lib/mongodb"
 import { Story } from "@/models/Story"
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-export async function GET(
-  _req: Request,
-  context: { params: { slug: string } },
-) {
+export async function GET(req: NextRequest) {
   try {
     await connectDB()
 
-    const storySlug = context.params.slug
+    const slug = req.nextUrl.pathname.split("/").at(-1)
 
-    const story = await Story.findOne({ slug: storySlug })
+    if (!slug) {
+      return NextResponse.json({ error: "Missing slug" }, { status: 400 })
+    }
+
+    const story = await Story.findOne({ slug })
       .populate("createdBy", "name email image")
       .populate("lines.createdBy", "name image")
 
