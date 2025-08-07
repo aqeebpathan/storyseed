@@ -1,5 +1,5 @@
-import AddLineForm from "@/components/add-line-form"
 import StoryText from "@/components/story-text"
+import AddLineForm from "@/components/add-line-form"
 
 type Story = {
   title: string
@@ -14,10 +14,25 @@ type Story = {
   }[]
 }
 
-const StoryPage = async ({ params }: { params: { slug: string } }) => {
+type PageProps = {
+  params: {
+    slug: string
+  }
+}
+
+const StoryPage = async ({ params }: PageProps) => {
   const { slug } = params
-  const data = await fetch(`${process.env.BASE_URL}/api/stories/${slug}`)
-  const story: Story = await data.json()
+
+  const res = await fetch(`${process.env.BASE_URL}/api/stories/${slug}`, {
+    cache: "no-store",
+    next: { revalidate: 20 },
+  })
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch story")
+  }
+
+  const story: Story = await res.json()
 
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-100px)] w-full flex-col px-4 py-12">
@@ -26,11 +41,9 @@ const StoryPage = async ({ params }: { params: { slug: string } }) => {
         {story.genre && (
           <p className="mt-1 text-lg text-neutral-400">{story.genre}</p>
         )}
-
-        {/* Story Text (Client Component) */}
         <StoryText lines={story.lines} />
       </div>
-       
+
       <AddLineForm />
     </div>
   )
