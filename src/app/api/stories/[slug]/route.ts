@@ -2,14 +2,17 @@ import { connectDB } from "@/lib/mongodb"
 import { Story } from "@/models/Story"
 import { NextResponse } from "next/server"
 
-export async function GET(
-  _req: Request,
-  context: { params: { slug: string } },
-) {
+type Params = {
+  params: {
+    slug: string
+  }
+}
+
+export async function GET(_req: Request, { params }: Params) {
   try {
     await connectDB()
 
-    const storySlug = context.params.slug
+    const storySlug = params.slug
 
     const story = await Story.findOne({ slug: storySlug })
       .populate("createdBy", "name email image")
