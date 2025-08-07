@@ -1,5 +1,5 @@
-import StoryText from "@/components/story-text"
 import AddLineForm from "@/components/add-line-form"
+import StoryText from "@/components/story-text"
 
 type Story = {
   title: string
@@ -15,16 +15,13 @@ type Story = {
 }
 
 type PageProps = {
-  params: {
-    slug: string
-  }
+  params: Promise<{ slug: string }>
 }
 
 const StoryPage = async ({ params }: PageProps) => {
-  const { slug } = params
+  const { slug } = await params
 
   const res = await fetch(`${process.env.BASE_URL}/api/stories/${slug}`, {
-    cache: "no-store",
     next: { revalidate: 20 },
   })
 
