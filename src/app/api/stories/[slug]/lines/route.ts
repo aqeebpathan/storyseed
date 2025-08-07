@@ -5,14 +5,38 @@ import { User } from "@/models/User"
 import { ObjectId } from "mongodb"
 import { connectDB } from "@/lib/mongodb"
 
+type StoryLine = {
+  text: string
+}
+
 // AI scoring function
-async function evaluateLine(text: string, context: string): Promise<number> {
+async function evaluateLine(
+  text: string,
+  context: string,
+): Promise<{ score: number; formattedText: string }> {
   const prompt = `
-Given the story context and the new line, rate how well the new line fits on a scale from 0 to 10.
-Context: "${context}"
-Line: "${text}"
-Only respond with an integer.
-  `
+You are evaluating how well a new line fits into an existing story.
+
+You must do two things:
+
+1. Score the new line from 0 to 10 **based strictly on how well it continues the story**. A score of:
+   - 10 means it fits perfectly, naturally extending the story.
+   - 5 means it's neutral or weakly related.
+   - 0 means it’s unrelated, random, or breaks the story's logic or tone.
+
+2. Format the line by capitalizing the first letter and adding a period if missing. Do **not** change the wording.
+
+Here is the context so far:
+"${context}"
+
+Here is the new line to evaluate:
+"${text}"
+
+Respond in this exact format:
+
+Score: <number from 0 to 10>
+Formatted Line: <formatted version of the line>
+`
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -30,11 +54,15 @@ Only respond with an integer.
   })
 
   const json = await res.json()
-  console.log(json)
-  const raw = json.choices?.[0]?.message?.content || "1"
-  const num = parseInt(raw.match(/\d+/)?.[0] || "1", 10)
+  const raw = json.choices?.[0]?.message?.content || ""
 
-  return Math.min(Math.max(num, 1), 10)
+  const score = parseInt(raw.match(/Score:\s*(\d+)/)?.[1] || "1", 10)
+  const formattedText = raw.match(/Formatted Line:\s*(.+)/)?.[1]?.trim() || text
+
+  return {
+    score: Math.min(Math.max(score, 1), 10),
+    formattedText,
+  }
 }
 
 export const POST = auth(async function POST(req, ctx) {
@@ -65,17 +93,19 @@ export const POST = auth(async function POST(req, ctx) {
       return NextResponse.json({ error: "Story not found" }, { status: 404 })
     }
 
-    const context = story.lines.map((line: any) => line.text).join(" ")
-    const score = await evaluateLine(text, context)
+    const context = story.lines.map((line: StoryLine) => line.text).join(" ")
 
-    const userId = new ObjectId(req.auth.user.id)
+    const userId = req.auth?.user?.id ? new ObjectId(req.auth.user.id) : null
     const user = await User.findById(userId)
+
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
+    const { score, formattedText } = await evaluateLine(text, context)
+
     const newLine = {
-      text,
+      text: formattedText,
       createdBy: user._id,
       score,
       createdAt: new Date(),
