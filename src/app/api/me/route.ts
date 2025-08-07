@@ -4,7 +4,7 @@ import { User } from "@/models/User"
 import { NextResponse } from "next/server"
 
 export const GET = auth(async function GET(req) {
-  if (!req.auth) {
+  if (!req.auth || !req.auth.user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
 
